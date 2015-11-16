@@ -8,8 +8,8 @@
 
 #include <stdint.h>
 
-template <class Pass> int FilterParallel(Pass &pass, int argc, char **argv) {
-  uint64_t input = 0, output = 0;
+template <class Pass> int FilterParallel(Pass &pass, int argc, char **argv, bool noout, uint64_t *input, uint64_t *output) {
+  *input = 0, *output = 0;
   if (argc == 1) {
     StringPiece line;
     util::FilePiece in(0, NULL, &std::cerr);
@@ -18,10 +18,12 @@ template <class Pass> int FilterParallel(Pass &pass, int argc, char **argv) {
       try {
         line = in.ReadLine();
       } catch (const util::EndOfFileException &e) { break; }
-      ++input;
+      ++(*input);
       if (pass(line)) {
-        out << line << '\n';
-        ++output;
+	if (!noout) {
+          out << line << '\n';
+	}
+        ++(*output);
       }
     }
   } else if (argc == 5) {
@@ -33,11 +35,13 @@ template <class Pass> int FilterParallel(Pass &pass, int argc, char **argv) {
         line0 = in0.ReadLine();
       } catch (const util::EndOfFileException &e) { break; }
       line1 = in1.ReadLine();
-      ++input;
+      ++(*input);
       if (pass(line0) && pass(line1)) {
-        out0 << line0 << '\n';
-        out1 << line1 << '\n';
-        ++output;
+        if (!noout) {
+          out0 << line0 << '\n';
+          out1 << line1 << '\n';
+	}
+        ++(*output);
       }
     }
     try {
@@ -51,8 +55,19 @@ template <class Pass> int FilterParallel(Pass &pass, int argc, char **argv) {
       "To filter parallel files, run\n" << argv[0] << "in0 in1 out0 out1\n";
     return 1;
   }
-  std::cerr << "Kept " << output << " / " << input << " = " << (static_cast<float>(output) / static_cast<float>(input)) << std::endl;
+  std::cerr << "Kept " << *output << " / " << *input << " = " << (static_cast<float>(*output) / static_cast<float>(*input)) << std::endl;
   return 0;
+}
+
+template <class Pass> int FilterParallel(Pass &pass, int argc, char **argv) {
+  uint64_t input = 0, output = 0;
+  bool noout = false;
+  return FilterParallel(pass, argc, argv, noout, &input, &output);
+}
+
+template <class Pass> int FilterCountParallel(Pass &pass, int argc, char **argv, uint64_t *input, uint64_t *output) {
+  bool noout = true;
+  return FilterParallel(pass, argc, argv, noout, input, output);
 }
 
 #endif
